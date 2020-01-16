@@ -97,6 +97,90 @@ MSE <- function(x, y, PolyOrder) {
 
 # 4. MSE for LOOCV procedure
 
-source("LOOCV.R") # get the LOOCV function, which was provided
+source("/Users/tar15/Documents/PhD/StatML/Lab 1/LOOCV.R") # get the LOOCV function, which was provided
+# plot(seq(1:8), sapply(seq(1:8), function(i) LOOCV(data$x,data$y, i)$Mean_CV), ylab = "average MSE", xlab="order", type="l")
+# Again, the function picks out n=3 as the optimum for the model
 
+# 5. CV with regularisation (lambda)
 
+LOOCV_lambda <- function(X,y,lambda){
+  # X is the matrix of features (including polynomials)
+  # y is a vector containig the targets
+  # Lambda is the parameter for ridge regression
+ 
+  NumOfDataPairs <- length(y)
+
+  # Initialise CV variable for storing results
+  CV = matrix(nrow=NumOfDataPairs, ncol=1)
+
+  for (n in 1:NumOfDataPairs){
+    # Create training design matrix and target data, leaving one out each time
+	  Train_X <- X[-n, ]
+   	Train_y <- y[-n]
+   
+	  # Create testing design matrix and target data
+    Test_X <- X[n, ]
+    Test_y <- y[n]
+
+	  # Learn the optimal paramerers using MSE loss with regularisation parameter
+    # Solve Paras_hat = (X^T*X + l*I)^(-1)*(X^T*y)
+    # i.e.  (X^T*X + l*I)*Paras_hat = (X^T*y)
+    Paras_hat <- solve( t(Train_X) %*% Train_X + lambda*diag(dim(X)[2]) , t(Train_X) %*% Train_y)
+    Pred_y    <- Test_X %*% Paras_hat;
+    
+    # Calculate the MSE of prediction using training data
+    CV[n]     <- (Pred_y - Test_y)^2
+  }
+  Mean_CV <- mean(CV)
+  SD_CV   <- sd(CV)
+  
+  print(Mean_CV)
+  print(SD_CV)
+
+return(Mean_CV)
+}
+
+# Investigate the fitting as a function of lambda
+x <-data$x
+y <-data$y
+PolyOrder <-5
+
+NumOfDataPairs <- length(x)
+
+# First construct design matrix of given order
+X      <- rep(1, NumOfDataPairs)
+dim(X) <- c(NumOfDataPairs, 1)
+
+for (n in 1:PolyOrder){
+    X = cbind(X, x^n)
+}
+
+s <- sample.int(NumOfDataPairs,floor(NumOfDataPairs*0.8)) # 80-20 split
+Train_X = X[s,]
+Train_y = y[s]
+
+lambdalist <- 2^seq(0,15,by=0.1)
+
+# Find lambda using LOOCV
+MSE_lambda=sapply(lambdalist, function(lambda) LOOCV_lambda(Train_X,Train_y,lambda))
+# plot(lambdalist,MSE_lambda, xlab="lambda", ylab="MSE", type="l") 
+lambda <-lambdalist[which.min(MSE_lambda)] #lambda that minimises MSE error
+
+Paras_hat <- solve( t(Train_X) %*% Train_X , t(Train_X) %*% Train_y)
+Paras_hat_lambda <- solve( t(Train_X) %*% Train_X + lambda*diag(dim(Train_X)[2]) , t(Train_X) %*%Train_y)
+
+Pred_y  <- X %*% Paras_hat
+Pred_y_lambda  <- X %*% Paras_hat_lambda
+
+# Both predictions seem to be a good fit
+plot(data$x,data$y)
+lines(data$x,Pred_y, col="red")
+lines(data$x,Pred_y_lambda, col="green")
+
+# Find lambda using 80-20 training split
+Test_X = X[-s,]
+Test_y = y[-s]
+Pred_test_y  <- Test_X %*% Paras_hat
+Pred_test_y_lambda  <- Test_X %*% Paras_hat_lambda # Test predictions are similar
+MSE<- mean((Pred_test_y-Test_y)^2)
+MSE_lambda<- mean((Pred_test_y_lambda-Test_y)^2)
