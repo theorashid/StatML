@@ -1,0 +1,235 @@
+---
+title: "Tutorial 1"
+author: "Sarah Filippi"
+date: "07/01/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Below is the function to generate the data
+```{r cars}
+Generate_Data <- function() {
+
+# Standard deviation of the noise to be added
+Noise_std <- 100
+ 
+# Set up the input variable, 100 points between -5 and 5
+x <- seq(-5, 5, by=10/(100-1))
+ 
+# Calculate the true function and add some noise
+y <- 5*x^3 - x^2 + x + Noise_std*rnorm(length(x), 0, 1)
+
+# Concatenate x and y into a single matrix and return
+dim(x) <- c(length(x), 1)
+dim(y) <- c(length(y), 1)
+Data <- data.frame(x=x,y=y)
+
+return(Data)
+}
+set.seed(123)
+data<-Generate_Data()
+plot(data$x,data$y)
+```
+
+Below is a function that computes the MSE for a dataset given the order of a polynomial. 
+
+```{r mse}
+MSE <- function(x, y, PolyOrder) {
+
+# x and y are vectors containing the inputs and targets respectively
+# PolyOrder is the order of polynomial model used for fitting
+ 
+NumOfDataPairs <- length(x)
+
+# First construct design matrix of given order
+X      <- rep(1, NumOfDataPairs)
+dim(X) <- c(NumOfDataPairs, 1)
+
+for (n in 1:PolyOrder){
+    X = cbind(X, x^n)
+}
+Train_X = X
+Train_y = y
+Paras_hat <- solve( t(Train_X) %*% Train_X , t(Train_X) %*% Train_y)
+Test_X = X
+Test_y = y 
+Pred_y  <- Test_X %*% Paras_hat
+MSE <- mean((Pred_y - Test_y)^2)
+
+return(MSE)
+}
+plot(seq(8), sapply(seq(1:8), function(i) MSE(data$x,data$y, i)), ylab = "MSE", xlab="order", type="l")
+```
+
+Split the dataset into training set (80%) and test set (20%) and plot the MSE for training set and test set separately
+```{r mse_tt}
+
+
+MSE <- function(x, y, PolyOrder) {
+
+# x and y are vectors containing the inputs and targets respectively
+# PolyOrder is the order of polynomial model used for fitting
+ 
+NumOfDataPairs <- length(x)
+
+# First construct design matrix of given order
+X      <- rep(1, NumOfDataPairs)
+dim(X) <- c(NumOfDataPairs, 1)
+
+for (n in 1:PolyOrder){
+    X = cbind(X, x^n)
+}
+set.seed(123)
+s<-sample.int(NumOfDataPairs,floor(NumOfDataPairs*0.7))
+Train_X = X[s,]
+Train_y = y[s]
+Paras_hat <- solve( t(Train_X) %*% Train_X , t(Train_X) %*% Train_y)
+Test_X = X[-s,]
+Test_y = y[-s]
+Pred_y  <- Test_X %*% Paras_hat
+MSE_test <- mean((Pred_y - Test_y)^2)
+MSE_train <- mean((Train_X %*% Paras_hat - Train_y)^2)
+return(data.frame(MSE_train,MSE_test))
+}
+plot(seq(1:8), sapply(seq(1:8), function(i) MSE(data$x,data$y, i)$MSE_train), ylab = "MSE", xlab="order", type="l", main ="On train set")
+plot(seq(1:8), sapply(seq(1:8), function(i) MSE(data$x,data$y, i)$MSE_test), ylab = "MSE", xlab="order", type="l", main="On test set")
+```
+Below is the code for the LOOCV. 
+
+
+```{r loocv}
+LOOCV <- function(x, y, PolyOrder) {
+
+# x and y are vectors containing the inputs and targets respectively
+# PolyOrder is the order of polynomial model used for fitting
+ 
+NumOfDataPairs <- length(x)
+
+# First construct design matrix of given order
+X      <- rep(1, NumOfDataPairs)
+dim(X) <- c(NumOfDataPairs, 1)
+
+for (n in 1:PolyOrder){
+    X = cbind(X, x^n)
+}
+
+# Initialise CV variable for storing results
+CV = matrix(nrow=NumOfDataPairs, ncol=1)
+
+for (n in 1:NumOfDataPairs){
+	
+	 # Create training design matrix and target data, leaving one out each time
+	Train_X <- X[-n, ]
+   	Train_y <- y[-n]
+   
+	# Create testing design matrix and target data
+    Test_X <- X[n, ]
+    Test_y <- y[n]
+
+	# Learn the optimal paramerers using MSE loss
+    
+    Paras_hat <- solve( t(Train_X) %*% Train_X , t(Train_X) %*% Train_y)
+    Pred_y    <- Test_X %*% Paras_hat;
+    
+    # Calculate the MSE of prediction using training data
+    CV[n]     <- (Pred_y - Test_y)^2
+}
+
+Mean_CV <- mean(CV)
+SD_CV   <- sd(CV)
+
+print(Mean_CV)
+print(SD_CV)
+
+# Concatenate x and y into a single matrix and return
+Results <- data.frame(Mean_CV, SD_CV)
+
+return(Results)
+}
+
+plot(seq(1:8), sapply(seq(1:8), function(i) LOOCV(data$x,data$y, i)$Mean_CV), ylab = "average MSE", xlab="order", type="l")
+```
+The function below compute the average MSE using a LOOCV procedure for a given lambda. 
+
+```{r loocv}
+LOOCV_lambda <- function(X,y,lambda){
+# X is the matrix of features (including polynomials)
+# y is a vector containig the targets
+# Lambda is the parameter for ridge regression
+ 
+NumOfDataPairs <- length(y)
+
+# Initialise CV variable for storing results
+CV = matrix(nrow=NumOfDataPairs, ncol=1)
+
+for (n in 1:NumOfDataPairs){
+	
+	 # Create training design matrix and target data, leaving one out each time
+	Train_X <- X[-n, ]
+   	Train_y <- y[-n]
+   
+	# Create testing design matrix and target data
+    Test_X <- X[n, ]
+    Test_y <- y[n]
+
+	# Learn the optimal paramerers using MSE loss
+    
+    Paras_hat <- solve( t(Train_X) %*% Train_X + lambda*diag(dim(X)[2]) , t(Train_X) %*% Train_y)
+    Pred_y    <- Test_X %*% Paras_hat;
+    
+    # Calculate the MSE of prediction using training data
+    CV[n]     <- (Pred_y - Test_y)^2
+
+}
+return(mean(CV))
+}
+```
+
+Consider a polynomial of degree 5, below is a plot of the average MSE (on the whole dataset) as a function of lambda.
+```{r loocv}
+x <-data$x
+y <-data$y
+PolyOrder <-5
+
+NumOfDataPairs <- length(x)
+
+# First construct design matrix of given order
+X      <- rep(1, NumOfDataPairs)
+dim(X) <- c(NumOfDataPairs, 1)
+
+for (n in 1:PolyOrder){
+    X = cbind(X, x^n)
+}
+
+s<-sample.int(NumOfDataPairs,floor(NumOfDataPairs*0.7))
+Train_X = X[s,]
+Train_y = y[s]
+lambdalist <- 2^seq(0,15,by=0.1)
+MSE_lambda=sapply(lambdalist, function(lambda) LOOCV_lambda(Train_X,Train_y,lambda))
+plot(lambdalist,MSE_lambda, xlab="lambda", ylab="MSE", type="l") 
+lambda <-lambdalist[which.min(MSE_lambda)]
+
+
+Paras_hat <- solve( t(Train_X) %*% Train_X , t(Train_X) %*% Train_y)
+Paras_hat_lambda <- solve( t(Train_X) %*% Train_X + lambda*diag(dim(Train_X)[2]) , t(Train_X) %*%Train_y)
+
+Pred_y  <- X %*% Paras_hat
+Pred_y_lambda  <- X %*% Paras_hat_lambda
+
+plot(data$x,data$y)
+lines(data$x,Pred_y, col="red")
+lines(data$x,Pred_y_lambda, col="green")
+
+Test_X = X[-s,]
+Test_y = y[-s]
+Pred_test_y  <- Test_X %*% Paras_hat
+Pred_test_y_lambda  <- Test_X %*% Paras_hat_lambda
+MSE<- mean((Pred_test_y-Test_y)^2)
+MSE_lambda<- mean((Pred_test_y_lambda-Test_y)^2)
+```
+
+
