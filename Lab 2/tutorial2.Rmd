@@ -1,0 +1,149 @@
+---
+title: "Machine Learning -- Tutorial2"
+author: Sarah Filippi
+output: html_notebook
+---
+# Iris Dataset
+
+Consider the iris dataset  The aim is to create a model to predict the species given the input data.
+
+```{r}
+library(MASS)
+set.seed(121)
+pairs(iris[,1:4],col=iris$Species)
+```
+
+To simplify the classification task, we will transform the data in order to focus on abinary classification problem: we will classify if a flower is of species Virginica or not.
+
+```{r}
+iris.data=iris
+iris.data$Species <- iris.data$Species == "virginica"
+pairs(iris.data[,1:4],col=iris.data$Species+1)
+```
+
+We divide the dataset into in a training and testing set with a proportion 60\% and 40\%.
+
+```{r}
+training_sample <- sample(c(TRUE, FALSE), nrow(iris.data), replace = T, prob = c(0.6,0.4))
+train <- iris.data[training_sample, ]
+test <- iris.data[!training_sample, ]
+```
+
+## Linear Discriminant analysis
+
+We will first perform the calssification task using a Linear Discriminant Analysis. The lda function from the MASS package can be used.
+
+```{r}
+iris.lda <- lda(Species ~ ., train)
+```
+
+The following function provides the estimated prior probability for each group as well as the group means and the coefficients of the linear discrimants.
+
+```{r}
+iris.lda #show results
+```
+
+To evaluate the prediction accuracy of the LDA model, we first run the model on the training set used to verify the model fits the data properly by using the command predict. The table output is a confusion matrix with the actual species as the row labels and the predicted species at the column labels.
+```{r}
+lda.train <- predict(iris.lda)
+train$lda <- lda.train$class
+table(train$lda,train$Species)
+```
+
+The total number of correctly predicted observations is the sum of the diagonal. So this model fit the training data correctly for almost every observation. Note that you can also obtain the posterior probabilites of both classes. The posterior probability of the Viriginica class is given by the following command.
+
+```{r}
+train$lda_proba<-predict(iris.lda)$posterior[,2]
+```
+
+Compute now the confusion matrix and the prediction accuracy on the test set. Does the model correctly classify the flowers on the test set?
+
+You can adapt the code from this section to perform a multiclass classification problem considering the three species of flower.
+
+## Logistic Regression
+
+We now consider logistic regression for this classification task. Logistic regression is a generalized linear model (GLM) with logit as the link function and a binomial error model. So we can use the glm function.
+
+```{r}
+iris.logistic <- glm(Species ~ .,
+  family = binomial(logit), data=train)
+```
+The warning indicates that the data are possibly linearly separable. The summary command can be used to see the inferred parameters of the model.
+
+```{r}
+summary(iris.logistic)
+```
+To evaluate the prediction accuracy of the logistic regression model, we first run the model on the training set used to verify the model fits the data properly by using the command predict. Here the output is the probability that the flower is of species Virginica.
+```{r}
+train$logistic <- predict(iris.logistic, type="response")
+```
+
+We can perform prediction by thresholding the probability (e.g. using a 0.5 threshold) and then compute a confusion matrix.
+
+```{r}
+table(actual= train$Species, predicted=train$logistic>=0.5)
+```
+
+Compute now the confusion matrix and the prediction accuracy on the test set. Does the model correctly classify the flowers on the test set?
+
+## Comparison of LDA and logistic regression using ROC curves
+
+To compare LDA and logistic regression, we can plot the ROC curves associated to both classifiers. To do so, we first need to compute the posterior probability of the flower being of species Virginica on the test set for each methods.
+
+```{r}
+test$lda_proba = predict(iris.lda, test)$posterior[,2]
+test$logistic <- predict(iris.logistic, test, type="response")
+```
+
+We then define a grid of thresholds and compute the specificity and 1-sensitivity for all these thresholds
+
+```{r}
+cvec <- seq(0.001,0.999,length=1000)
+specif.lda <- numeric(length(cvec))
+sensit.lda <- numeric(length(cvec))
+specif.lr <- numeric(length(cvec))
+sensit.lr <- numeric(length(cvec))
+for (cc in 1:length(cvec)){
+  sensit.lda[cc] <- sum( test$lda_proba> cvec[cc] & test$Species==T)/sum(test$Species==T)
+  specif.lda[cc] <- sum( test$lda_proba<=cvec[cc] & test$Species==F)/sum(test$Species==F)
+  sensit.lr[cc] <- sum( test$logistic> cvec[cc] & test$Species==T)/sum(test$Species==T)
+  specif.lr[cc] <- sum( test$logistic<=cvec[cc] & test$Species==F)/sum(test$Species==F)
+}
+plot(1-specif.lda,sensit.lda,xlab="Specificity",ylab="Sensitivity",type="l",lwd=2)
+lines(1-specif.lr,sensit.lr,col="red",lwd=2)
+```
+# MNIST dataset
+
+The MNIST (Modified National Institute of Standards and Technology) data is a database
+of handwritten digits.
+
+```{r}
+mnist <- read.csv("mnist_train.csv", header = F)
+```
+
+Each handwritten digit is stored in a 28 × 28 pixels grayscale image. The grayscale
+values (0 to 255) for the 784 pixels are stored as row vectors in the dataset. The first columns is the lable of the image, i.e a digit between 0 and 9. Below is a  function to graphically display a digit based on its vector of grayscale values.
+
+```{r}
+visualise = function(vec, ...){ # function for graphically displaying a digit
+image(matrix(as.numeric(vec),nrow=28)[,28:1], col=gray((255:0)/255), ...)
+}
+old_par <- par(mfrow=c(2,2))
+for (i in 1:4) visualise(mnist[i,-1])
+par(old_par)
+```
+
+We would like to build a classifier that can distinguish between the digits 0 and 1. We therefore selectonly the 0 and 1 digits from the dataset and then divide the remaining data into a training and testing dataset. Moreover, many margin pixels are white in the whole dataset; we will therefore exclude them from our analysis.
+
+```{r}
+idx=which(mnist[,1]<=1)
+mnist<-mnist[idx,]
+s<- sample.int(floor(2*length(idx)/3))
+train <- mnist[s,]
+test <- mnist[-s,]
+identical <- apply(train, 2, function(v){all(v==v[1])})
+train <- train[,!identical]
+test <- test[,!identical]
+```
+
+Use LDA and logistic regression to perform the classification task on this dataset.
