@@ -1,6 +1,7 @@
 # Theo AO Rashid -- January 2020
 
 # ----- Machine Learning: Lab 2 -----
+# Linear Discriminant Analysis (LDA)
 library(MASS)
 set.seed(1)
 
@@ -19,8 +20,6 @@ iris.data$Species <- iris.data$Species == "virginica"
 training_sample <- sample(c(TRUE, FALSE), nrow(iris.data), replace = T, prob = c(0.6,0.4))
 train <- iris.data[training_sample, ]
 test <- iris.data[!training_sample, ]
-
-# Linear Discriminant Analysis (LDA)
 
 # Fit LDA to training set
 # lda function from MASS package
@@ -41,3 +40,16 @@ lda.test <- predict(iris.lda, test)
 test$lda <- lda.test$class
 # table(test$lda,test$Species) # confusion matrix for test set
 test$lda_proba <- predict(iris.lda, test)$posterior[,2]
+
+# ROC curve
+# Define a grid of thresholds
+cvec <- seq(0.001,0.999,length=1000)
+specif.lda <- numeric(length(cvec))
+sensit.lda <- numeric(length(cvec))
+
+# Compute the specificity and 1-sensitivity for all these thresholds
+for (cc in 1:length(cvec)){
+  sensit.lda[cc] <- sum( test$lda_proba> cvec[cc] & test$Species==T)/sum(test$Species==T)
+  specif.lda[cc] <- sum( test$lda_proba<=cvec[cc] & test$Species==F)/sum(test$Species==F)
+}
+# plot(1-specif.lda,sensit.lda,xlab="Specificity",ylab="Sensitivity",type="l",lwd=2)
