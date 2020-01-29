@@ -4,7 +4,7 @@
 # Classification on the MNIST handwritten digits dataset
 
 # 28x28 greyscale (value 0 to 255) images
-mnist <- read.csv("/Users/tar15/Documents/PhD/StatML/Lab 2/mnist_train.csv")
+mnist <- read.csv("http://wwwf.imperial.ac.uk/~sfilippi/Data/mnist_train.csv", header = F)
 
 # function for graphically displaying a digit
 visualise = function(vec, ...){
