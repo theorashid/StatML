@@ -7,3 +7,5 @@ Investigate the effect that increasing model complexity has on the mean squared 
 Lab 2 -- Perform classification via Linear Discriminant Analysis and logistic regression
 
 Lab 3 -- Pricipal Component Analysis and Clustering (K-means and hierarchical)
+
+Lab 4 -- Random Forests and Neural Networks

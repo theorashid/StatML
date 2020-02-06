@@ -1,7 +1,7 @@
 # Theo AO Rashid -- January 2020
 
 # ----- Machine Learning: Lab 3 -----
-# Clutering
+# Clustering
 
 # ----- K-means -----
 USArrests <- read.csv("/Users/tar15/Documents/PhD/StatML/Lab 3/USArrests.csv")
