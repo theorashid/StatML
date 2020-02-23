@@ -165,3 +165,27 @@ plot_post <- ggplot() +
 
 # WORK OUT MARGINAL LIKELIHOOD OF THE DATA
 # AND OPTIMISE USING optim
+
+# Let's only optimise for length-scale l
+# Fixed: Sigma, noise model and kernel choice
+# Assume mean function is zero
+
+# Parameters, X_train, kernel (sigma, l), sigma_noise, y_train
+
+# Function to work out marginal likelihood of data
+data_marg_likelihood <- function(par) {
+    # par[1] -- sigma of the kernel function
+    # This function has been lazily implemented using global variables
+    # A better effort should be made to involve parameters X_train,
+    # y_train, kernel, as well as the parameters to optimise l (par[1]),
+    # sigma (par[2]) and sigma_noise (par[3])
+
+    # Currently it uses the global variables defined above
+    K <- cov_matrix(X_train, X_train, kernel, l = par[1])
+    K_theta <- K + sigma_noise^2 * diag(length(X_train))
+    log_p <- -0.5*t(y_train)%*%solve(K_theta)%*%y_train - 0.5*log(norm(K_theta)) # ignoring constants
+    return(log_p) # each column is a sample
+}
+
+# Not converging for this dataset
+# optim(par=c(1),fn=data_marg_likelihood,control=list(fnscale=-1)) # fnscale=-1 for max not min

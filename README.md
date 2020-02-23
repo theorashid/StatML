@@ -9,3 +9,5 @@ Lab 2 -- Perform classification via Linear Discriminant Analysis and logistic re
 Lab 3 -- Pricipal Component Analysis and Clustering (K-means and hierarchical)
 
 Lab 4 -- Random Forests and Neural Networks
+
+GP -- Gaussian process exercise set by Dr Seth Flaxman. Investigate different kernels, fit a GP to some data, maximise the marginal likelihood to find the best hyperparameters
